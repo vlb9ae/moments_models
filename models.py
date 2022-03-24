@@ -247,8 +247,35 @@ def multi_resnet3d50(num_classes=292, pretrained=True, **kwargs):
 def load_model(arch):
     model = {'resnet3d50': resnet3d50,
              'multi_resnet3d50': multi_resnet3d50, 'resnet50': resnet50}.get(arch, 'resnet3d50')()
-    model.eval()
-    return model
+    new_model = nn.Sequential(*list(model.children())[:-1]) # skip top fc layer
+    new_model.eval()
+    return new_model
+
+
+def load_extractor3d(k):
+    model = multi_resnet3d50(pretrained=True)
+    new_model = nn.Sequential(*list(model.children())[:-1])
+    
+    # TODO: Set requires_grad=False for all layers below k
+    print('# of 3d blocks', len(list(model.children())))
+    print('# of 3d modules', len(list(model.modules())))
+
+    total_blocks = len(list(model.children()))
+    total_modules = len(list(model.modules()))
+
+    blocks_to_ignore = list(range(total_blocks-k, total_blocks))
+    modules_to_ignore = list(range(total_modules-k, total_modules))
+
+    print('ignoring 3d blocks', blocks_to_ignore)
+    print('ignoring 3d modules', modules_to_ignore)
+
+    for (index, child) in enumerate(model.children()):
+        if index in blocks_to_ignore:
+            print('leaving block', index, 'alone')
+        else:
+            for p in child.parameters():
+                p.requires_grad = False
+    return new_model
 
 
 def load_transform():
